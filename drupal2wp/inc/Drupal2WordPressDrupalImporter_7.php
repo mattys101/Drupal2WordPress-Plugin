@@ -7,7 +7,8 @@
  */
 
 class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdapter {
-
+    
+    private $metaMap=array();
     /**
      * Returns an array of available Drupal post types
      * @return array
@@ -196,7 +197,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                     );
                     // Check for error
                     if ($result === false) {
-                        $this->errors['term_taxonomy'][] = $wpdb->last_error;
+                        $this->errors['term_taxonomy'][] = $wpdb->last_error." (Term. ID".$dt['term_id'].") ";
                         continue;
                     }
                     $_tmpTaxonomies[$dt['term_id']] = array_merge($_tmpTaxonomies[$dt['term_id']], $dt);
@@ -219,7 +220,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                     $tmpTerm = get_term_by('id', (int)$dt['tid'], $dt['post_tag']);
                     // If there was an error, continue to the next term.
                     if (!$tmpTerm) {
-                        $this->errors['get_term_by_id'][] = sprintf(__('Could not load the term by ID: %d', 'drupal2wp'), $dt['tid']);
+                        $this->errors['get_term_by_id'][] = sprintf(__('Could not load the term by ID: %d (%s %s)', 'drupal2wp'), $dt['tid'],$dt['alias'],print_r($dt,true));
                         continue;
                     }
                     // Get term URI
@@ -353,7 +354,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         }
         ob_flush(); flush(); // Output
     }
-
+    
     /**
      * Saves the Drupal post array to WordPress
      * This is set to allow plugins to call this method to easily add post content
@@ -471,7 +472,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             return $wpdb->insert_id;
         } else {
             $wpdb->print_error();
-            $this->errors['import_content'][] = sprintf( __('ID: %d', 'drupal2wp'), $dp['id']);
+            $this->errors['import_content'][] = sprintf( __('ID: %d %s %d', 'drupal2wp'), $dp['id'],$dp['post_type'],$dp['id']);
         }
         return false;
     }
@@ -755,7 +756,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 if (!is_wp_error($attachmentID)) {
                     set_post_thumbnail($postID, $attachmentID);
                 } else {
-                    $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message());
+                    $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
                 }
             }
         }
