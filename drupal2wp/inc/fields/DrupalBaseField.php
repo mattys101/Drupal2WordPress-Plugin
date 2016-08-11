@@ -12,6 +12,9 @@ class DrupalBaseField {
     var $post_data=FALSE;
     var $field_data=FALSE;
     var $field_info=FALSE;
+    var $repeater_post=FALSE;
+    var $repeater_post_count=0;
+    var $repeater_post_name=FALSE;
     var $drupal_importer;
     function __construct($field_info,$drupal_importer,$field_map=FALSE) {
         $this->field_info=$field_info;
@@ -72,6 +75,18 @@ class DrupalBaseField {
         
         return $fimp;
     }
+    public function processMultiMeta($post_data,$field_data_array){
+        $is_repeater=count($field_data_array)>1;
+        $this->post_data=$post_data;
+        foreach($field_data_array AS $fd){
+             $this->post_data = $this->processMeta($this->post_data,$fd,$is_repeater?$fd["delta"]:FALSE);
+        }
+        //Add ACF count field
+        if($is_repeater && $this->repeater_post && $this->repeater_post_name ){
+             $this->post_data["postmeta"][$this->repeater_post_name]=$this->repeater_post+1;
+        }
+        return $this->post_data;
+    }
     
     public function processMeta($post_data,$field_data,$repeaterPos=FALSE){
         $this->post_data=$post_data;
@@ -124,6 +139,13 @@ class DrupalBaseField {
         
         if($this->repeater_post!==FALSE){//ACF kind field name
             $retname=$name."_".$this->repeater_post."_".$fname;
+            $this->repeater_post_name=str_replace("field_", "", $name);
+            $this->repeater_post_name=apply_filters('drupal2wp_get_repeater_field_name',$this->repeater_post_name);
+            $this->repeater_post_count+=1;
+            
+        }else{
+            $this->repeater_post_name=FALSE;
+            $this->repeater_post_count=0;
         }
         //Delete all field_ parts needed for ACF
         $retname=str_replace("field_", "", $retname);

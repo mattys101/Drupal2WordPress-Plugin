@@ -465,7 +465,7 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
             }
         }
         // Do the validation and storage stuff
-        $extra_post_data=NULL;
+        $extra_post_data=array();
         if(is_array($desc)){
             $desc_data=$desc;
             $desc=$desc_data["desc"];
@@ -481,9 +481,6 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
             }
             if(!empty($desc_data["title"])){
                 $extra_post_data["post_title"]=$desc_data["title"];
-            }
-            if(empty($extra_post_data)){
-                $extra_post_data=NULL;
             }
         }
         $attachmentID = media_handle_sideload($file_array, $post_id, $desc,$extra_post_data);

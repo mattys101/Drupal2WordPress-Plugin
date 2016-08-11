@@ -380,6 +380,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             $dp["postmeta"]=array();
         }
         foreach($fields AS $f){
+            /* @var $fieldImporter DrupalBaseField */
             $fieldImporter = apply_filters('drupal2wp_get_field_importer',new DrupalBaseField($f,$this));
             if($fieldImporter){
                 $sqlQuery = apply_filters( 'drupal2wp_query_meta_field',
@@ -387,14 +388,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 WHERE bundle='".$dp["drupal_post_type"]."' AND entity_id=".$dp["id"]." ORDER BY delta ASC " );
                 $fieldData = $this->_drupalDB->results($sqlQuery);
                if(!empty($fieldData)){
-                   $is_repeater=count($fieldData)>1;
-                   if($is_repeater){
-                       foreach($fieldData AS $fd){
-                           $dp = $fieldImporter->processMeta($dp,$fd,$fd["delta"]);
-                       }
-                   }else{
-                        $dp = $fieldImporter->processMeta($dp,$fieldData[0]);  
-                   }
+                   $dp=$fieldImporter->processMultiMeta($dp, $fieldData);
                }
             }
         }
