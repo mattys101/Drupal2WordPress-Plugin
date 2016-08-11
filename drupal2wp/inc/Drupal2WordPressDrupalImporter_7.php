@@ -779,7 +779,12 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 ob_flush(); flush(); // Output
             }else{
                 foreach(DrupalFileField::$media_post_data AS $post_id=>$data){
+                    $mediaCount=count($data);
                     foreach($data AS $mediaItem){
+                        //if only one item set as post thumbnail
+                        if($mediaCount==1){
+                            $mediaItem["is_post_thumbnail"]=true;
+                        }
                         $this->importDeferedMedia($post_id,$mediaItem);
                     }
                     print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';

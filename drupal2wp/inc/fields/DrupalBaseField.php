@@ -138,7 +138,11 @@ class DrupalBaseField {
         }
         
         if($this->repeater_post!==FALSE){//ACF kind field name
-            $retname=$name."_".$this->repeater_post."_".$fname;
+            $field_part_name=$fname;
+            if(strpos($field_part_name, $name."_")===0){
+                $field_part_name= str_replace($name."_", "", $field_part_name);
+            }
+            $retname=$name."_".$this->repeater_post."_".$field_part_name;
             $this->repeater_post_name=str_replace("field_", "", $name);
             $this->repeater_post_name=apply_filters('drupal2wp_get_repeater_field_name',$this->repeater_post_name);
             $this->repeater_post_count+=1;
