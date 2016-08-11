@@ -319,7 +319,8 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         if (empty($this->options['content_associations'])) {
             return false;
         }
-
+        //Load meta field map
+        $this->loadMetaMaps();
         // Get all post from Drupal and add it into WordPress
         $sqlQuery = apply_filters( 'drupal2wp_query_nodes',
         	"SELECT
@@ -356,6 +357,51 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
     }
     
     /**
+     * Load the meta data/content type map
+     */
+    private function loadMetaMaps(){
+        $sqlQuery = apply_filters( 'drupal2wp_query_fields',
+        	"SELECT * FROM ".$this->dbSettings['prefix']."field_config_instance fci
+            JOIN ".$this->dbSettings['prefix']."field_config fc ON (fci.field_id = fc.id)
+            " );
+        $meta = $this->_drupalDB->results($sqlQuery);
+        foreach($meta AS $m){
+            if(!isset($this->metaMap[$m["bundle"]])){
+                $this->metaMap[$m["bundle"]]=array();
+            }
+            //Add field to bundle
+            $this->metaMap[$m["bundle"]][]=$m;
+        }
+    }
+    
+    private function loadDrupalFields($dp){
+        $fields=$this->metaMap[$dp["drupal_post_type"]];
+        if(!isset($dp["postmeta"])){
+            $dp["postmeta"]=array();
+        }
+        foreach($fields AS $f){
+            $fieldImporter = apply_filters('drupal2wp_get_field_importer',new DrupalBaseField($f,$this));
+            if($fieldImporter){
+                $sqlQuery = apply_filters( 'drupal2wp_query_meta_field',
+        	"SELECT * FROM ".$this->dbSettings['prefix']."field_data_".$f["field_name"]." f
+                WHERE bundle='".$dp["drupal_post_type"]."' AND entity_id=".$dp["id"]." ORDER BY delta ASC " );
+                $fieldData = $this->_drupalDB->results($sqlQuery);
+               if(!empty($fieldData)){
+                   $is_repeater=count($fieldData)>1;
+                   if($is_repeater){
+                       foreach($fieldData AS $fd){
+                           $dp = $fieldImporter->processMeta($dp,$fd,$fd["delta"]);
+                       }
+                   }else{
+                        $dp = $fieldImporter->processMeta($dp,$fieldData[0]);  
+                   }
+               }
+            }
+        }
+        return $dp;
+    }
+
+    /**
      * Saves the Drupal post array to WordPress
      * This is set to allow plugins to call this method to easily add post content
      * @param array $dp
@@ -387,6 +433,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         // Fix slug
         $dp['post_name'] = $this->convertToWordPressSlug($dp['post_title']);
         // Add post type to post so other plugins can check against it
+        $dp['drupal_post_type'] =  $dp['post_type'];//backup of the original post type
         $dp['post_type'] = $post_type;
         // Filter to modify post
         $dp = apply_filters('drupal2wp_modify_post', $dp);
@@ -444,6 +491,19 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         // Make sure post has been saved
         if ($result !== false) {
             $_postID = $wpdb->insert_id;
+            //Add post meta
+            $dp["post_id"]=$_postID;
+            $dp=$this->loadDrupalFields($dp);
+            foreach($dp["postmeta"] AS $k=>$v){
+                $wpdb->insert(
+                    $wpdb->postmeta,
+                    array('post_id' => $_postID,
+                          'meta_key' => $k,
+                          'meta_value' => $v),
+                    array('%d', '%s', '%s')
+                );
+            }
+            
             // Add to rewrite rules if different
             $newSlug = in_array($dp['post_type'], array('post','page')) ? get_permalink($_postID, false, true) : get_post_permalink($_postID);
             $newSlug = parse_url($newSlug);
@@ -709,18 +769,28 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
     private function _importMedia() {
         global $wpdb;
         if (!empty($this->options['media'])) {
-            // Fetch all imported content
-            $importedPosts = $wpdb->get_results("SELECT ID FROM $wpdb->posts");
-            if ($importedPosts) {
-                // loop over IDs and import media
-                foreach($importedPosts as $post) {
-                    $this->importMediaForPostID($post->ID);
+            //Old import media method
+            if(empty(DrupalFileField::$media_post_data)){
+                // Fetch all imported content
+                $importedPosts = $wpdb->get_results("SELECT ID FROM $wpdb->posts");
+                if ($importedPosts) {
+                    // loop over IDs and import media
+                    foreach($importedPosts as $post) {
+                        $this->importMediaForPostID($post->ID);
+                    }
+                    print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';
+                } else {
+                    print '<p><span>'.__('No Media was Found for Import', 'drupal2wp').'</span></p>';
                 }
-                print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';
-            } else {
-                print '<p><span>'.__('No Media was Found for Import', 'drupal2wp').'</span></p>';
+                ob_flush(); flush(); // Output
+            }else{
+                foreach(DrupalFileField::$media_post_data AS $post_id=>$data){
+                    foreach($data AS $mediaItem){
+                        $this->importDeferedMedia($post_id,$mediaItem);
+                    }
+                    print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';
+                }
             }
-            ob_flush(); flush(); // Output
         }
     }
 
@@ -755,6 +825,44 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 $attachmentID = self::addFileToMediaManager($postID, $file, '', $pMedia['filename'], $this->errors['import_media']);
                 if (!is_wp_error($attachmentID)) {
                     set_post_thumbnail($postID, $attachmentID);
+                } else {
+                    $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
+                }
+            }
+        }
+    }
+    
+    private function importDeferedMedia($postID,$data) {
+        if (empty($this->options['files_location'])) {
+            $this->errors['import_media'][] = __('No Drupal files path defined to import media.', 'drupal2wp');
+            return false;
+        }
+        // Fix file path
+        $this->options['files_location'] = trim($this->options['files_location'], '/').'/';
+        $data=apply_filters('drupal2wp_process_media_field',$data);
+        // Fetch media 
+        $postMedia = $this->_drupalDB->results("
+            SELECT
+                u.fid,
+                m.uri,
+                m.filename
+            FROM ".$this->dbSettings['prefix']."file_usage u
+                LEFT JOIN ".$this->dbSettings['prefix']."file_managed m ON (m.fid = u.fid)
+            WHERE u.fid = {$data["file_id"]}
+            ");
+        if (!empty($postMedia)) {
+            foreach ($postMedia as $pMedia) {
+                // Replace Drupal public:// with URL
+                $file = str_replace('public://', $this->options['files_location'], $pMedia['uri']);
+                $attachmentID = self::addFileToMediaManager($postID, $file, array("alt"=>$data["alt"],"title"=>$data["title"]), $pMedia['filename'], $this->errors['import_media']);
+                if (!is_wp_error($attachmentID)) {
+                    //if setted a post thumbnail update the post. This is setted by anyone with the 'drupal2wp_process_media_field' filter 
+                    if(isset($data["is_post_thumbnail"]) && $data["is_post_thumbnail"]){
+                        set_post_thumbnail($postID, $attachmentID);
+                    }else{
+                        //Else add as meta field
+                        add_post_meta($postID, $data["post_field"], $attachmentID);
+                    }
                 } else {
                     $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
                 }

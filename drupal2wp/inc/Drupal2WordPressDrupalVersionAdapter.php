@@ -465,7 +465,28 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
             }
         }
         // Do the validation and storage stuff
-        $attachmentID = media_handle_sideload($file_array, $post_id, $desc);
+        $extra_post_data=NULL;
+        if(is_array($desc)){
+            $desc_data=$desc;
+            $desc=$desc_data["desc"];
+            $extra_post_data=array();
+            if(empty($desc)){
+                $desc=NULL;
+            }
+            if(!empty($desc_data["alt"])){
+                $extra_post_data["post_excerpt"]=$desc_data["alt"];
+            }
+            if(!empty($desc)){
+                $extra_post_data["post_content"]=$desc;
+            }
+            if(!empty($desc_data["title"])){
+                $extra_post_data["post_title"]=$desc_data["title"];
+            }
+            if(empty($extra_post_data)){
+                $extra_post_data=NULL;
+            }
+        }
+        $attachmentID = media_handle_sideload($file_array, $post_id, $desc,$extra_post_data);
         // If error storing permanently, unlink
         if (is_wp_error($attachmentID)) {
             @unlink($file_array['tmp_name']);

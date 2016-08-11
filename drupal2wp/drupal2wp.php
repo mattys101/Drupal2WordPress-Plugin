@@ -48,6 +48,11 @@ function drupal2wp_autoloader($class) {
     $tmpFile = plugin_dir_path(__FILE__) . 'inc/' . $class . '.php';
     if (file_exists($tmpFile)) {
         require_once($tmpFile);
+    }else{
+        $tmpFile = plugin_dir_path(__FILE__) . 'inc/fields/' . $class . '.php';
+        if (file_exists($tmpFile)) {
+            require_once($tmpFile);
+        }
     }
 }
 
