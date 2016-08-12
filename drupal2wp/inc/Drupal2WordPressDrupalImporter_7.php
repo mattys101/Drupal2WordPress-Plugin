@@ -308,7 +308,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             print '<hr/><p><span style="color: green; font-size: 2em;">'.__('Imported data model', 'drupal2wp').'</span></p>';
             print '<p>Use it to create your ACF (or any other plugin) meta data model</p>';
             foreach ($this->dataModel AS $cpt=>$cpt_fields){
-                print "<ul>$cpt";
+                print "<ul><strong style='color: darkblue;'>$cpt</strong>";
                 ksort($cpt_fields);
                 foreach ($cpt_fields AS $fn=>$uses){
                     echo "<li>$fn : $uses</li>";
@@ -800,9 +800,9 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                             $mediaItem["is_post_thumbnail"]=true;
                         }
                         $this->importDeferedMedia($post_id,$mediaItem);
-                    }
-                    print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';
+                    }                    
                 }
+                print '<p><span style="color: green;">'.__('Media Imported', 'drupal2wp').'</span></p>';
             }
         }
     }
