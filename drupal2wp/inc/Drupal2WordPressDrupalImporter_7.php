@@ -9,6 +9,7 @@
 class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdapter {
     
     private $metaMap=array();
+    private $dataModel=array();
     /**
      * Returns an array of available Drupal post types
      * @return array
@@ -304,6 +305,17 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             $this->_updatePostType();
             $this->_importComments();
             $this->_importMedia();
+            print '<hr/><p><span style="color: green; font-size: 2em;">'.__('Imported data model', 'drupal2wp').'</span></p>';
+            print '<p>Use it to create your ACF (or any other plugin) meta data model</p>';
+            foreach ($this->dataModel AS $cpt=>$cpt_fields){
+                print "<ul>$cpt";
+                ksort($cpt_fields);
+                foreach ($cpt_fields AS $fn=>$uses){
+                    echo "<li>$fn : $uses</li>";
+                }
+                print "</ul>";
+            }
+            echo "<hr/>";
         }
         return $this; // maintain chaining
     }
@@ -350,6 +362,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             $wpdb->query("UPDATE {$wpdb->posts} SET post_content = REPLACE(post_content,'<p class=\"italic\"> </p>','');");
 
             print '<p><span style="color: green;">'.__('Content Imported', 'drupal2wp').'</span></p>';
+            
         } else {
             print '<p><span style="color: maroon;">'.__('Content Failed to Import', 'drupal2wp').' - '.__('All failed', 'drupal2wp').'</span></p>';
         }
@@ -489,6 +502,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             $dp["post_id"]=$_postID;
             $dp=$this->loadDrupalFields($dp);
             foreach($dp["postmeta"] AS $k=>$v){
+                $this->dataModel[$post_type][$k]=((int)$this->dataModel[$post_type][$k])+1;
                 $wpdb->insert(
                     $wpdb->postmeta,
                     array('post_id' => $_postID,
@@ -838,7 +852,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         }
         // Fix file path
         $this->options['files_location'] = trim($this->options['files_location'], '/').'/';
-        $data=apply_filters('drupal2wp_process_media_field',$data);
+        $data=apply_filters('drupal2wp_process_media_field',$data);//Used mainly for set image as thumbnail image
         // Fetch media 
         $postMedia = $this->_drupalDB->results("
             SELECT
@@ -853,6 +867,8 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
             foreach ($postMedia as $pMedia) {
                 // Replace Drupal public:// with URL
                 $file = str_replace('public://', $this->options['files_location'], $pMedia['uri']);
+                //Set image dataModel
+                $this->dataModel[$data["post_type"]][$data["post_field"]]=(int)$this->dataModel[$data["post_type"]][$data["post_field"]]+1;
                 $attachmentID = self::addFileToMediaManager($postID, $file, array("alt"=>$data["alt"],"title"=>$data["title"]), $pMedia['filename'], $this->errors['import_media']);
                 if (!is_wp_error($attachmentID)) {
                     //if setted a post thumbnail update the post. This is setted by anyone with the 'drupal2wp_process_media_field' filter 

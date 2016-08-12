@@ -29,7 +29,7 @@ class DrupalBaseField {
     }
     
     public static function registerBaseFieldsCallback($currentFieldImporter){
-        $fi=$currentFieldImporter->field_info;
+        $fi=apply_filters('drupal2wp_process_field_info',$currentFieldImporter->field_info);
         $di=$currentFieldImporter->drupal_importer;
         $name=$fi["field_name"];
         $type=$fi["type"];
@@ -76,7 +76,7 @@ class DrupalBaseField {
         return $fimp;
     }
     public function processMultiMeta($post_data,$field_data_array){
-        $is_repeater=count($field_data_array)>1;
+        $is_repeater=(int)$this->field_info["cardinality"]!=1;//Check if is a repeater field
         $this->post_data=$post_data;
         foreach($field_data_array AS $fd){
              $this->post_data = $this->processMeta($this->post_data,$fd,$is_repeater?$fd["delta"]:FALSE);

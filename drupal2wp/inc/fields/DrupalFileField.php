@@ -28,7 +28,7 @@ class DrupalFileField extends DrupalBaseField{
         }
         $file_id=$this->getFieldValue($name."_fid");
         //Not add to current post meta. Add to defered meta
-        self::$media_post_data[$post_id][$this->getFieldValue($name."_fid")]=array("file_id"=>$file_id,"post_field"=>$this->getFieldName($name, $wp_field_name),"post_id"=>$post_id, "alt"=>$this->getFieldValue($name."_alt"),"title"=>$this->getFieldValue($name."_title"));
+        self::$media_post_data[$post_id][$this->getFieldValue($name."_fid")]=array("file_id"=>$file_id,"post_type"=>$this->post_data["post_type"],"post_field"=>$this->getFieldName($name, $wp_field_name),"post_id"=>$post_id, "alt"=>$this->getFieldValue($name."_alt"),"title"=>$this->getFieldValue($name."_title"));
     }
     
     public function getFieldValue($col){
