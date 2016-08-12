@@ -46,6 +46,12 @@ class DrupalBaseField {
                 $fimp=new DrupalBaseField($fi,$di,array($name=>$name."_value"));
                 break;
             case "image":
+                if($fi["cardinality"]==1){
+                    $fimp=new DrupalFileField($fi,$di);
+                }else{
+                    $fimp=new ACFGalleryField($fi,$di);
+                }
+                break;
             case "file":
                 $fimp=new DrupalFileField($fi,$di);
                 break;

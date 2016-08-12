@@ -46,7 +46,7 @@ class Drupal2WordPress_DrupalImporter {
         // Call init hook
         do_action('drupal2wp_init');
         // Get max Execution time
-        $_maxExecutionTime = apply_filters('drupal2wp_max_execution_time', 1800); // 30 min default
+        $_maxExecutionTime = apply_filters('drupal2wp_max_execution_time', 0); // Infinite by
         // Set max_execution_time
         ini_set('max_execution_time', $_maxExecutionTime);
         // Do import

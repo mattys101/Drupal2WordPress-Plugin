@@ -796,7 +796,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                     $mediaCount=count($data);
                     foreach($data AS $mediaItem){
                         //if only one item set as post thumbnail
-                        if($mediaCount==1){
+                        if($mediaCount==1 && (!isset($mediaItem["gallery"]) || !$mediaItem["gallery"])){
                             $mediaItem["is_post_thumbnail"]=true;
                         }
                         $this->importDeferedMedia($post_id,$mediaItem);
@@ -853,6 +853,40 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         // Fix file path
         $this->options['files_location'] = trim($this->options['files_location'], '/').'/';
         $data=apply_filters('drupal2wp_process_media_field',$data);//Used mainly for set image as thumbnail image
+        if(isset($data["gallery"]) && $data["gallery"]){
+            $gallery_items=array();
+            foreach($data["images"] AS $imgData){
+                $attachmentID=$this->importMediaItem($postID,$imgData);
+                if($attachmentID!==FALSE){
+                    if (!is_wp_error($attachmentID)) {
+                        $gallery_items[]=$attachmentID;
+                    } else {
+                        $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
+                    }
+                }
+            }
+            $this->dataModel[$data["post_type"]][$data["post_field"]]=(int)$this->dataModel[$data["post_type"]][$data["post_field"]]+1;
+            add_post_meta($postID, $data["post_field"], $gallery_items);
+        }else{
+            $attachmentID=$this->importMediaItem($postID,$data);
+            if($attachmentID!==FALSE){
+                if (!is_wp_error($attachmentID)) {
+                    //if setted a post thumbnail update the post. This is setted by anyone with the 'drupal2wp_process_media_field' filter 
+                    if(isset($data["is_post_thumbnail"]) && $data["is_post_thumbnail"]){
+                        set_post_thumbnail($postID, $attachmentID);
+                    }else{
+                        //Else add as meta field
+                        $this->dataModel[$data["post_type"]][$data["post_field"]]=(int)$this->dataModel[$data["post_type"]][$data["post_field"]]+1;
+                        add_post_meta($postID, $data["post_field"], $attachmentID);
+                    }
+                } else {
+                    $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
+                }
+            }
+        }
+    }
+    
+    private function importMediaItem($postID,$data){
         // Fetch media 
         $postMedia = $this->_drupalDB->results("
             SELECT
@@ -868,21 +902,11 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 // Replace Drupal public:// with URL
                 $file = str_replace('public://', $this->options['files_location'], $pMedia['uri']);
                 //Set image dataModel
-                $this->dataModel[$data["post_type"]][$data["post_field"]]=(int)$this->dataModel[$data["post_type"]][$data["post_field"]]+1;
                 $attachmentID = self::addFileToMediaManager($postID, $file, array("alt"=>$data["alt"],"title"=>$data["title"]), $pMedia['filename'], $this->errors['import_media']);
-                if (!is_wp_error($attachmentID)) {
-                    //if setted a post thumbnail update the post. This is setted by anyone with the 'drupal2wp_process_media_field' filter 
-                    if(isset($data["is_post_thumbnail"]) && $data["is_post_thumbnail"]){
-                        set_post_thumbnail($postID, $attachmentID);
-                    }else{
-                        //Else add as meta field
-                        add_post_meta($postID, $data["post_field"], $attachmentID);
-                    }
-                } else {
-                    $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);
-                }
+                return $attachmentID;
             }
         }
+        return FALSE;
     }
 
     /**
