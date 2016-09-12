@@ -88,7 +88,7 @@ class DrupalBaseField {
              $this->post_data = $this->processMeta($this->post_data,$fd,$is_repeater?$fd["delta"]:FALSE);
         }
         //Add ACF count field
-        if($is_repeater && $this->repeater_post && $this->repeater_post_name ){
+        if($is_repeater && $this->repeater_post!==FALSE && $this->repeater_post_name ){
              $this->post_data["postmeta"][$this->repeater_post_name]=$this->repeater_post+1;
         }
         return $this->post_data;
