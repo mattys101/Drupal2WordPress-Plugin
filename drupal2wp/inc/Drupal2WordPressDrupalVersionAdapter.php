@@ -222,6 +222,7 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
             $this->importContent();
             // Add to action
             add_action('drupal2wp_after_import_content', array($this, 'fixContentMedia'), 50); // Do this after the content 50 forces it to be last
+            add_action('drupal2wp_after_import_content', array($this, 'fixContentMediaLinks'), 50); // Do this after the content 50 forces it to be last
         }
         do_action('drupal2wp_after_import_content', $this);
         return $this; // maintain chaining
@@ -385,8 +386,9 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
                                             $_attachmentID = self::addFileToMediaManager($post->ID, $tmp, '', '', $this->errors['content_media']);
                                             // Update to the new attachment src
                                             if (!is_wp_error($_attachmentID)) {
-                                                if (!has_post_thumbnail($post->ID) && 1 === ++$i) {
+                                                if (!has_post_thumbnail($post->ID) && 1 === ++$i && strpos($post->post_content, $img_tag) < 20) {
                                                     // This is in case there is no featured thumbnail, if it has one it will replace this
+                                                    // but only do this if the first image is near the beginning of the content.
                                                     set_post_thumbnail($post->ID, $_attachmentID);
                                                     // Remove from content (perhaps first occurrence only?)
                                                     $post->post_content = str_replace($img_tag, '', $post->post_content);
@@ -414,6 +416,88 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
             }
             // Fix media paths (fail-safe if imports are missed)
             $post->post_content = $this->fixAssetPathing($post->post_content);
+            // Update the post into the database (do not use wp_update_post as this adds revisions)
+            $result = $wpdb->update(
+                $wpdb->posts,
+                array(
+                    'post_content' => $post->post_content,	// string
+                ),
+                array( 'ID' => $post->ID ),
+                array(
+                    '%s'	// post_content
+                ),
+                array( '%d' )
+            );
+            if (false === $result) {
+                $this->errors['content_media'][] = sprintf( __('Failed to update content for post ID: %d', 'drupal2wp'), $post->ID);
+            }
+        }
+        return $this; // maintain chaining
+    }
+
+    /**
+     * Fixes post content media refernces by <a></a>, rather than images.
+     */
+    public function fixContentMediaLinks() {
+        global $wpdb;
+
+        // Fetch our posts and fix our media
+        $posts = $wpdb->get_results("SELECT * FROM {$wpdb->posts} WHERE post_type NOT IN ('attachment', 'revision');");
+        foreach ($posts as $post) {
+            // Are we fixing any content paths?
+            if (!empty($this->options['content_media_import'])) {
+                // Process content media import
+                $_contentTags = array();
+                preg_match_all('/<a[^>]+>/i', $post->post_content, $_contentTags);
+                // Fix content import media
+                if (!empty($_contentTags[0])) {
+                    $i = 0;
+                    foreach ($_contentTags[0] as $tag) {
+                        $anchors = array();
+                        preg_match_all('/(title|href)="([^"]*)"/i', $tag, $anchors[$tag]);
+                        if (!empty($anchors)) {
+                            foreach ($anchors as $anchor => $data) {
+                                $_key = array_search('href', $data[1]);
+                                if (false !== $_key && !empty($data[2][$_key])) {
+                                    $originalHref = $data[2][$_key];
+                                    // Make sure we want to replace this
+                                    foreach ($this->options['content_media_import'] as $url) {
+                                        if ( !empty($url) && 0 === strpos($originalHref, $url)) {
+                                            // Check if original href is relative (use tmp so we don't alter the original src for replace later)
+                                            $tmp = $originalHref;
+                                            if (!empty($this->options['drupal_url'])) {
+                                                $parsed = parse_url($originalHref);
+                                                if (empty($parsed['scheme'])) {
+                                                    $tmp = rtrim($this->options['drupal_url'], '/') . '/' . ltrim($originalHref, '/');
+                                                }
+                                            }
+                                            // Get attachment
+                                            $_attachmentID = self::addFileToMediaManager($post->ID, $tmp, '', '', $this->errors['content_media']);
+                                            // Update to the new attachment src
+                                            if (!is_wp_error($_attachmentID)) {
+                                                // Replace link path
+                                                $newHref = wp_get_attachment_url($_attachmentID);
+                                                $post->post_content = str_replace($originalHref, $newHref, $post->post_content);
+                                            } else {
+                                                // Failed to import, now we are just fixing the path
+                                                if (empty($this->options['files_location']) && empty($this->options['wp_drupal_assets_url'])) {
+                                                    $post->post_content = str_replace($originalHref, $this->options['wp_drupal_assets_url'], $post->post_content);
+                                                    $this->errors['content_media'][] = sprintf( __('Failed to import content media file: %s. Updated path to point to %s. - %s', 'drupal2wp'), $originalHref, $this->options['wp_drupal_assets_url'], $_attachmentID->get_error_message());
+                                                } else {
+                                                    $this->errors['content_media'][] = sprintf( __('Failed to import content media file: %s - %s', 'drupal2wp'), $originalHref, $_attachmentID->get_error_message());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Fix media paths (fail-safe if imports are missed)
+            // Don't do it again here, should have been done by fixContentMedia alread.
+            // $post->post_content = $this->fixAssetPathing($post->post_content);
             // Update the post into the database (do not use wp_update_post as this adds revisions)
             $result = $wpdb->update(
                 $wpdb->posts,
@@ -500,9 +584,9 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
      * @return array|WP_Error
      */
     public static function downloadFile($file) {
-        $tmp = download_url($file);
+        $tmp = self::my_download_url($file);
         if (!is_wp_error($tmp)) {
-            if (preg_match('/[^\?]+\.(jpg|jpe|jpeg|gif|png|pdf)/i', $file, $matches)) {
+            if (preg_match('/[^\?]+\.(jpg|jpe|jpeg|gif|png|pdf|zip|rtf|doc|docx|ppt|pptx|xls|xlsx|xml|svg|owl)/i', $file, $matches)) {
                 return array(
                     'name' => basename($matches[0]),
                     'tmp_name' => $tmp
@@ -515,6 +599,41 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
         }
         return $tmp;
     }
+
+private static function my_download_url( $url, $timeout = 600 ) {
+    //WARNING: The file is not automatically deleted, The script must unlink() the file.
+    if ( ! $url )
+        return new WP_Error('http_no_url', __('Invalid URL Provided.'));
+ 
+    $url_filename = basename( parse_url( $url, PHP_URL_PATH ) );
+ 
+    $tmpfname = wp_tempnam( $url_filename );
+    if ( ! $tmpfname )
+        return new WP_Error('http_no_file', __('Could not create Temporary file.'));
+ 
+    $response = wp_safe_remote_get( $url, array( 'headers' => 'accept-encoding: identity', 'decompress' => true, 'timeout' => $timeout, 'stream' => true, 'filename' => $tmpfname ) );
+ 
+    if ( is_wp_error( $response ) ) {
+        unlink( $tmpfname );
+        return $response;
+    }
+ 
+    if ( 200 != wp_remote_retrieve_response_code( $response ) ){
+        unlink( $tmpfname );
+        return new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
+    }
+ 
+    $content_md5 = wp_remote_retrieve_header( $response, 'content-md5' );
+    if ( $content_md5 ) {
+        $md5_check = verify_file_md5( $tmpfname, $content_md5 );
+        if ( is_wp_error( $md5_check ) ) {
+            unlink( $tmpfname );
+            return $md5_check;
+        }
+    }
+ 
+    return $tmpfname;
+}
 
     /**
      * Process the Drupal user role to a WordPress user role

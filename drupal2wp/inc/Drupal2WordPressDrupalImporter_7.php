@@ -877,7 +877,11 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                     }else{
                         //Else add as meta field
                         $this->dataModel[$data["post_type"]][$data["post_field"]]=(int)$this->dataModel[$data["post_type"]][$data["post_field"]]+1;
-                        add_post_meta($postID, $data["post_field"], $attachmentID);
+                        // TODO: retrieve this value as an option, so that the user can decide whether or not they want to convert the id to a URL
+                        // this is because many custom field plugins replace the id with the URL for 'image' field types.
+                        $urlAsValue = true;
+                        $value = $urlAsValue ? wp_get_attachment_url($attachmentID) : $attachmentID;
+                        add_post_meta($postID, $data["post_field"], $value);
                     }
                 } else {
                     $this->errors['import_media'][] = sprintf( __('Failed to import media file: %s - %s - %s POST ID %d', 'drupal2wp'), $pMedia['filename'], $attachmentID->get_error_message(),$file,$postID);

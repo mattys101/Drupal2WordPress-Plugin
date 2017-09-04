@@ -73,6 +73,9 @@ class DrupalBaseField {
             case "geolocation_latlng":
                 $fimp=new ACFGoogleMapField($fi,$di);
                 break;
+            case "datetime":
+                $fimp = new DrupalDateField($fi, $di);
+                break;
             default:
                 //text_with_summary
                 //node_reference
