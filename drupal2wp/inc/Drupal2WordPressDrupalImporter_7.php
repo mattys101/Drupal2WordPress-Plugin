@@ -81,6 +81,8 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
      * Runs check and processes terms import
      */
     public function importTerms() {
+	    echo "Import terms was executed";
+	    return;
         if (!empty($this->options['terms'])) {
             $this->_importTags();
             $this->_importCategories();
@@ -243,7 +245,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Tags Failed to Import', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
 
         $drupal_tags = $drupal_taxonomy = NULL;
         unset($drupal_tags, $drupal_taxonomy);
@@ -291,7 +293,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Categories Failed to Import', 'drupal2wp').' - '.__('All failed', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
 
     }
 
@@ -300,6 +302,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
      */
     public function importContent() {
         if (!empty($this->options['content'])) {
+		echo "import Content";
             $this->_importContentTypes();
             $this->_importTagsAndRelationships();
             $this->_updatePostType();
@@ -366,7 +369,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Content Failed to Import', 'drupal2wp').' - '.__('All failed', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
     
     /**
@@ -600,7 +603,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Tags & Content Relationships Failed to Import', 'drupal2wp').' - '.__('All failed', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
     /**
@@ -628,7 +631,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Tag Count Failed to Update', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
     /**
@@ -654,7 +657,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Posted Type Failed to Update', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
     /**
@@ -676,7 +679,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
     private function _importCommentsData() {
         $this->_processCommentsLevel();
         print '<p><span style="color: green;">'.__('Comments Imported', 'drupal2wp').'</span></p>';
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
     /**
@@ -768,7 +771,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.__('Content Comments Count Failed to Update', 'drupal2wp').'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
     /**
@@ -790,7 +793,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                 } else {
                     print '<p><span>'.__('No Media was Found for Import', 'drupal2wp').'</span></p>';
                 }
-                ob_flush(); flush(); // Output
+                //ob_flush(); flush(); // Output
             }else{
                 foreach(DrupalFileField::$media_post_data AS $post_id=>$data){
                     $mediaCount=count($data);
@@ -934,7 +937,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
                     $this->_importUsersData($i, $importLimit);
                 }
                 print '<p><span style="color: green;">'.sprintf(__('Users Import Complete (%d imported)', 'drupal2wp'), $totalUsers['total']).'</span></p>';
-                ob_flush(); flush(); // Output
+                //ob_flush(); flush(); // Output
             }
         }
         return $this; // maintain chaining
@@ -1080,7 +1083,7 @@ class Drupal2WordPressDrupalImporter_7 extends Drupal2WordPressDrupalVersionAdap
         } else {
             print '<p><span style="color: maroon;">'.sprintf(__('Failed to import users: %d - %d', 'drupal2wp'), $offset, $offset+$importLimit).'</span></p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
     }
 
 }

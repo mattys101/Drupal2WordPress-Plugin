@@ -164,7 +164,7 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
         if (!empty($this->options['wp_drupal_assets_url'])) {
             $this->options['wp_drupal_assets_url'] = rtrim($this->options['wp_drupal_assets_url'], '/').'/';
         }
-        do_action('drupal2wp_fix_settings', $this);
+	do_action('drupal2wp_fix_settings', $this);
         return $this; // maintain chaining
     }
 
@@ -173,7 +173,6 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
      */
     public function _truncateWP() {
         global $wpdb;
-
         // Process options
         if (!empty($this->options['terms'])) {
             $wpdb->query("TRUNCATE TABLE {$wpdb->term_relationships}");
@@ -198,7 +197,7 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
         do_action('drupal2wp_importer_truncate', $this);
 
         print '<p><span style="color: green;">'.__('WordPress Tables Truncated', 'drupal2wp').'</span> - '.__('This ensures content/user IDs are synced across all systems', 'drupal2wp').'</p>';
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output //Commented out because of issues, about hanging the browser :(
 
         return $this; // maintain chaining
     }
@@ -349,7 +348,6 @@ abstract class Drupal2WordPressDrupalVersionAdapter implements Drupal2WordPressD
      */
     public function fixContentMedia() {
         global $wpdb;
-
         // Fetch our posts and fix our media
         $posts = $wpdb->get_results("SELECT * FROM {$wpdb->posts} WHERE post_type NOT IN ('attachment', 'revision');");
         foreach ($posts as $post) {
@@ -704,7 +702,7 @@ private static function my_download_url( $url, $timeout = 600 ) {
                 }
             }
             echo '</ul>';
-            ob_flush(); flush(); // Output
+            //ob_flush(); flush(); // Output
             // Flush the rewrite rules to use correct permalinks
             flush_rewrite_rules(true);
             // Remove Session data
@@ -730,7 +728,7 @@ private static function my_download_url( $url, $timeout = 600 ) {
         } else {
             echo '<p>'.__('No rewrites are necessary.', 'drupal2wp').'</p>';
         }
-        ob_flush(); flush(); // Output
+        //ob_flush(); flush(); // Output
         return $this; // maintain chaining
     }
 
