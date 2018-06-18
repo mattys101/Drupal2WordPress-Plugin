@@ -249,11 +249,12 @@ class Drupal2WordPress_DrupalDB {
         $query = preg_replace_callback(DB_QUERY_REGEXP, array(&$this, 'string_sanitize'), $sql['query']);
         mysqli_query($conn,"SET NAMES 'utf8'");
         mysqli_query($conn,"SET SQL_BIG_SELECTS=1 ");
+	mysqli_query($conn,"SET sql_mode=''");
         $result = mysqli_query($conn, $query);
 
         if (!$result){
             if ($show_error){
-                echo "Error querying database. : $query<br/>";
+                echo "Error querying database. : $query; Error desc: ".mysqli_error($conn)."<br/>";
             }
         }
         else{
